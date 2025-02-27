@@ -1,0 +1,42 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    maxconn 4096
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    log global
+    mode tcp
+    timeout connect 10s
+    timeout client 1m
+    timeout server 1m
+
+# --- Mode Écriture ---
+frontend galera_write
+    bind *:3306
+    mode tcp
+    default_backend galera_nodes_write
+
+backend galera_nodes_write
+    mode tcp
+    balance roundrobin
+    option mysql-check user haproxy_check
+    {% for node in galera_nodes %}
+    server {{ node.name }} {{ node.ip }}:3306 check
+    {% endfor %}
+
+# --- Mode Lecture ---
+frontend galera_read
+    bind *:3307
+    mode tcp
+    default_backend galera_nodes_read
+
+backend galera_nodes_read
+    mode tcp
+    balance leastconn
+    option mysql-check user haproxy_check
+    {% for node in galera_nodes %}
+    server {{ node.name }} {{ node.ip }}:3306 check
+    {% endfor %}

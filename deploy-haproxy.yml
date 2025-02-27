@@ -1,0 +1,45 @@
+---
+- name: Déploiement de HAProxy pour Galera Cluster
+  hosts: haproxy_servers
+  become: yes
+  vars:
+    haproxy_config_path: "/etc/haproxy/haproxy.cfg"
+    galera_nodes:
+      - { name: "node1", ip: "192.168.1.10" }
+      - { name: "node2", ip: "192.168.1.11" }
+      - { name: "node3", ip: "192.168.1.12" }
+
+  tasks:
+
+    - name: Installer HAProxy
+      apt:
+        name: haproxy
+        state: present
+        update_cache: yes
+
+    - name: Configurer HAProxy
+      template:
+        src: templates/haproxy.cfg.j2
+        dest: "{{ haproxy_config_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart HAProxy
+
+    - name: Activer et démarrer HAProxy
+      systemd:
+        name: haproxy
+        enabled: yes
+        state: started
+
+- name: Configuration MySQL pour HAProxy Monitoring
+  hosts: galera_nodes
+  become: yes
+  tasks:
+    - name: Ajouter l'utilisateur haproxy_check
+      mysql_user:
+        name: haproxy_check
+        host: "%"
+        password: "password"
+        priv: "*.*:USAGE"
+        state: present
